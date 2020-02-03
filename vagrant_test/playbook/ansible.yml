@@ -116,9 +116,9 @@
         docker cp Web.war /glassfish_home;
         chmod 777 /glassfish_home
 
-    # - name: glassfish war copy
-    #   shell:
-    #     docker cp cd /vagrant/Web.war glassfish:/usr/local/glassfish4/bin/Web.war
+    - name: glassfish war copy
+      shell:
+        docker cp ./vagrant/Web.war glassfish:/usr/local/glassfish4/bin/Web.war
     
     # - name: glassfish deploy
     #   shell:
