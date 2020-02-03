@@ -113,12 +113,12 @@
       shell:
         docker-compose up -d;
         # cd /vagrant;
-        docker cp Web.war /glassfish_home;
-        chmod 777 /glassfish_home
+      #  docker cp Web.war /glassfish_home;
+        # chmod 777 /glassfish_home
 
     - name: glassfish war copy
       shell:
-        docker cp ./vagrant/Web.war glassfish:/usr/local/glassfish4/bin/Web.war
+        docker cp /vagrant/DbConnectionTest.war glassfish:/usr/local/glassfish4/bin/DbConnectionTest.war
     
     # - name: glassfish deploy
     #   shell:
