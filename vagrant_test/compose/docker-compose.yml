@@ -1,0 +1,46 @@
+version: '3.7'
+services:
+
+  httpd:
+    image: httpd:latest
+    ports:
+      - 8083:80
+
+  glassfish:
+    image: glassfish:latest
+    container_name: glassfish
+    restart: always
+    ports:
+      - 8080:8080
+      - 4848:4848
+      - 8181:8181
+    volumes:
+      - ./glassfish_home:/usr/local/glassfish4/glassfish/domains/domain1/autodeploy
+  
+  db:
+    build: 
+      context: ./vagrant/mysql
+      dockerfile: Dockerfile_mysql
+    command: --default-authentication-plugin=mysql_native_password 
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: infra
+      MYSQL_USER: java
+      MYSQL_PASSWORD: java
+    volumes:
+      - "./mysql/data:/var/lib/mysql"
+      - "./mysql/init:/docker-entrypoint-initdb.d"
+      - /etc/localtime:/etc/localtime:ro
+
+  jenkins:
+    container_name: jenkins
+    image: jenkins/jenkins:lts
+    ports:
+      - 9003:8080
+      - 50000:50000
+    volumes:
+      - ./jenkins_home:/var/lib/jenkins_home:ro
+    

@@ -1,0 +1,6 @@
+FROM mysql:5.7
+
+COPY ./my.cnf.j2 /etc/mysql/conf.d
+COPY init/* /docker-entrypoint-initdb.d/
+
+RUN groupmod -g 1000 mysql && usermod -u 1000 -g 1000 mysql

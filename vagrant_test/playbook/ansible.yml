@@ -1,0 +1,164 @@
+- hosts: all
+  user: vagrant
+  become: yes
+  vars:
+    config_path: '/vagrant'
+  tasks:
+    - name: Install repository & tool
+      yum: 
+       name: "{{ packages }}"
+       state: latest
+      vars:
+        packages:
+          - epel-release
+          - http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+          - http://dev.mysql.com/get/mysql57-community-release-el7-8.noarch.rpm
+
+
+    # - name: Install apache
+    #   yum:
+    #     name: "{{ packages }}"
+    #     state: latest
+    #     enablerepo: epel
+    #   vars:
+    #     packages:
+    #       - httpd
+    #       - mod_ssl
+    #       - mod_xsendfile
+
+    # - name: Start & Enabled Apache
+    #   systemd: name=httpd state=started enabled=true
+
+    - name: iuscommunity
+      yum:
+        name: https://centos7.iuscommunity.org/ius-release.rpm
+        state: latest
+        
+        #pythonインストール
+    - name: install python
+      yum:
+        name: "{{ packages }}"
+        state: latest
+      vars:
+        packages:
+          - python36u
+          - python36u-libs
+          - python36u-devel
+          - python36u-pip
+
+          #pathリンクする
+    - name: links files
+      shell:
+        ln -s /bin/python3.6 /bin/python3;
+        ln -s /bin/pip3.6 /bin/pip;
+
+    #docker関連
+    # - name: Install docker
+    #   yum:
+    #     name: docker
+    #     state: latest
+      
+
+    - name: install yum-utils
+      yum:
+        name: "{{ packages }}"
+        state: latest
+      vars:
+        packages:
+          - yum-utils
+          - device-mapper-persistent-data
+          - lvm2
+          - bridge-utils
+    
+    - name: yum-config-manager
+      shell:
+        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo        
+        
+    - name: Install docker engine
+      yum: 
+        name: "{{ packages }}"
+        state: latest
+      vars:
+        packages:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+
+    - name: install docker-compose
+      shell:
+        pip install docker-compose;
+        ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose;
+
+    - name: Start & Enabled Docker
+      systemd: name=docker state=started enabled=true
+    
+    - name: adding user to docker
+      shell:
+        usermod -aG docker $USER
+      
+    # - name: 
+    #   systemd: name=docker state=started enabled=true
+
+    # - name: docker GlassFish conteiner
+    #   shell:
+    #     docker pull glassfish:latest;
+    #   # docker run --name grassfish;
+
+    - name: docker compose
+      template:
+        src: "{{ config_path }}/compose/docker-compose.yml"
+        dest: /.
+    
+    - name: docker-compose up
+      shell:
+        docker-compose up -d;
+        # cd /vagrant;
+        docker cp Web.war /glassfish_home;
+        chmod 777 /glassfish_home
+
+    # - name: glassfish war copy
+    #   shell:
+    #     docker cp cd /vagrant/Web.war glassfish:/usr/local/glassfish4/bin/Web.war
+    
+    # - name: glassfish deploy
+    #   shell:
+        # docker exec -it glassfish /usr/local/glassfish4/bin/asadmin deploy /usr/local/glassfish4/bin/Web.war;
+        # cd /home;
+        # docker-compose up -d;
+        # docker exec -it glassfish /bin/bash;
+        # cd /usr/local/glassfish4/bin;
+        # asadmin deploy Web.war;
+        # systemctl restart docker;
+        # cd /home;
+        # sudo docker-compose up -d
+
+
+        #データベース関連
+    # - name: Install MySql
+    #   yum:
+    #     name: mysql-community-server
+    #     state: latest
+    
+    # - name: Copying configuration file for MySQL.
+    #   template:
+    #     src: "{{ config_path }}/mysql/my.cnf.j2"
+    #     dest: /etc/my.cnf
+    
+    # - name: Start & Enabled MySQL
+    #   systemd: name=mysqld state=started enabled=true
+
+    # - name: get temporary password
+    #   shell: cat /var/log/mysqld.log | grep "temporary password" | awk '{print $11}'
+    #   register: mysql_default_password
+
+    # - name: change password validation to the easy way
+    #   shell:
+    #     mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_length=4;";
+    #     mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_policy=LOW;";
+    #     mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';";
+  
+
+  handlers:
+    - name: restart mysqld
+      service: name=mysqld state=restarted
+        

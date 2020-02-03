@@ -1,0 +1,120 @@
+- hosts: all
+  user: vagrant
+  become: yes
+  vars:
+    config_path: '/vagrant'
+  tasks:
+    - name: Set system's hostname.
+      hostname:
+        name: esvr1.example.local
+
+    - name: Install repository & tools
+      yum:
+        name: "{{ packages }}"
+        state: latest
+      vars:
+        packages:
+          - epel-release
+          - http://rpms.famillecollet.com/enterprise/remi-release-7.rpm
+          - http://dev.mysql.com/get/mysql57-community-release-el7-8.noarch.rpm
+
+    - name: Install apache
+      yum:
+        name: "{{ packages }}"
+        state: latest
+        enablerepo: epel
+      vars:
+        packages:
+          - httpd
+          - mod_ssl
+          - mod_xsendfile
+
+    - name: Install php7
+      yum:
+        name: "{{ packages }}"
+        enablerepo: remi,remi-php71
+      vars:
+        packages:
+          - php
+          - php-common
+          - php-cli
+          - php-json
+          - php-intl
+          - php-mbstring
+          - php-xml
+          - php-xmlrpc
+          - php-soap
+          - php-opcache
+          - php-pdo
+          - php-mysqlnd
+          - php-pecl-zip
+          - php-gd
+          - aspell
+          - graphviz
+          - ghostscript
+
+    - name: Install MySQL
+      yum: name=mysql-community-server state=latest
+
+    - name: Copying configuration file for MySQL.
+      template:
+        src: "{{ config_path }}/mysql/my.cnf.j2"
+        dest: /etc/my.cnf
+
+    - name: Start & Enabled MySQL
+      systemd: name=mysqld state=started enabled=true
+
+    - name: Start & Enabled Apache
+      systemd: name=httpd state=started enabled=true
+
+    - name: get temporary password
+      shell: cat /var/log/mysqld.log | grep "temporary password" | awk '{print $11}'
+      register: mysql_default_password
+
+    - name: change password validation to the easy way
+      shell:
+        mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_length=4;";
+        mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "SET GLOBAL validate_password_policy=LOW;";
+        mysql -u root -p'{{ mysql_default_password.stdout }}' --connect-expired-password -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';";
+
+    - name: create moodle directory.
+      file: path=/var/www/moodledata state=directory owner=apache group=apache
+
+    - name: download moodle
+      get_url:
+        url: https://download.moodle.org/download.php/direct/stable32/moodle-3.2.2.tgz
+        dest: /tmp
+
+    - name: unarchive moodle
+      unarchive:
+        src: /tmp/moodle-3.2.2.tgz
+        dest: /tmp
+
+    - name: Install moodle
+      shell:
+        mv /tmp/moodle/* /var/www/html; 
+        php /var/www/html/admin/cli/install.php
+         --non-interactive
+         --lang=ja --wwwroot=http://esvr.example.local
+         --dataroot=/var/www/moodledata
+         --dbtype=mysqli
+         --dbhost=localhost
+         --dbpass=root
+         --fullname=esvr1
+         --shortname=esvr1
+         --adminuser=root
+         --adminpass=root
+         --adminemail=root@example.local
+         --agree-license;
+        chown -R apache:apache /var/www;
+
+    - name: Copying configuration file for network interface.
+      template:
+        src: "{{ config_path }}/network/ifcfg-enp0s8.j2"
+        dest: /etc/sysconfig/network-scripts/ifcfg-enp0s8
+
+    - name: Modify to default network interface.
+      lineinfile:
+        dest: /etc/sysconfig/network-scripts/ifcfg-enp0s3
+        regexp: 'DEFROUTE='
+        line: 'DEFROUTE="no"'
